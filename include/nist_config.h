@@ -25,7 +25,7 @@
 
 /* #define NIST_ZEROIZE 1 */
 
-#if 1
+#if 0
 /* Use the VIA padlock hardware as the AES implementation */
 #ifndef NIST_AES_PADLOCK_H_
 #include "nist_aes_padlock.h"
