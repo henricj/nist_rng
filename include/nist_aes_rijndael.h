@@ -15,7 +15,7 @@
  */
 
 /*
- * Interface adapter for Rijndael implmentation (for use by NIST SP 800-90 CTR_DRBG)
+ * Interface adapter for Rijndael implementation (for use by NIST SP 800-90 CTR_DRBG)
  */
 
 #ifndef NIST_AES_RIJNDAEL_H
