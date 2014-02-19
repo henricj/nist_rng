@@ -241,7 +241,7 @@ nist_ctr_drbg_block_cipher_df(const char* input_string[], unsigned int L[],
 	unsigned int output_buffer[512 / 8 / sizeof(unsigned int)];
 
 	if (N > sizeof(output_buffer) || N < 1)
-		return 0;
+		return 1;
 
 	sum_L = 0;
 	for (j = 0; j < input_string_count; ++j)
