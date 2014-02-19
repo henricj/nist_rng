@@ -1,0 +1,39 @@
+NIST SP 800-90 CTR_DRBG
+
+This code implements a random number generator based on
+section 10.2 "DRBG Mechanisms Based on Block Ciphers" in
+NIST SP 800-90.  More specifically, it implements CTR_DRBG
+with a derivation function using AES-256 as the block
+encryption function.
+
+Security strength, prediction resistance, and the like apply
+to a higher level interface than is currently implemented
+(the algorithm as implemented can be used to support
+prediction resistance a security strength of up to 256).
+
+It gives the same output on i386/OpenBSD, amd64/FreeBSD and
+Windows, but without test vectors one shouldn't say a whole
+lot more about that output (diehard seems happy, but that
+could be true even if things were severely screwed up).
+
+TODO
+
+The API should be based on the "envelope" described in
+chapter 9 and section F.3.2.  So far, only the section 10.2
+algorithm is implemented.
+
+The code lacks both test vectors and a way to validate them.
+
+Some basic runtime self-tests need to be implemented (and
+enforced by the various API functions).
+
+The code should be reviewed to make sure it is consistent
+with SP 800-90 (there are comments throughout the code
+referencing the relevant parts of SP 800-90).
+
+The Makefile will likely need some tweaks for anything other
+than OpenBSD or FreeBSD.
+
+http://henric.info/random/
+software -at- henric.info
+
