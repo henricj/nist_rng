@@ -42,18 +42,10 @@ static unsigned char nist_cipher_df_encrypted_iv[NIST_BLOCK_SEEDLEN / NIST_BLOCK
 static NIST_Key nist_cipher_zero_ctx;
 
 /*
- * NIST SP 800-90 March 2007
- * 10.2.1.5.2 The Process Steps for Generating Pseudorandom Bits When a
- *            Derivation Function is Used for the DRBG Implementation
- * Global Constants
- */
-static const unsigned int nist_ctr_drgb_generate_null_input[NIST_BLOCK_SEEDLEN_INTS] = { 0 };
-
-
-/*
  * Utility
  */
-/*
+
+ /*
  * nist_increment_block
  *    Increment the output block as a big-endian number.
  */
@@ -364,15 +356,21 @@ nist_ctr_drbg_update(NIST_CTR_DRBG* drbg, const unsigned int* provided_data)
 	/* 3 temp is already of size seedlen (NIST_BLOCK_SEEDLEN_INTS) */
 
 	/* 4 (part 1) temp = temp XOR provided_data */
-	for (i = 0; i < NIST_BLOCK_KEYLEN_INTS; ++i)
-		temp[i] ^= *provided_data++;
+	if (provided_data) {
+		for (i = 0; i < NIST_BLOCK_KEYLEN_INTS; ++i)
+			temp[i] ^= *provided_data++;
+	}
 
 	/* 5 Key = leftmost keylen bits of temp */
 	Block_Schedule_Encryption(&drbg->ctx, &temp[0]);
 
 	/* 4 (part 2) combined with 6 V = rightmost outlen bits of temp */
-	for (i = 0; i < NIST_BLOCK_OUTLEN_INTS; ++i)
-		drbg->V[i] = temp[NIST_BLOCK_KEYLEN_INTS + i] ^ *provided_data++;
+	if (provided_data) {
+		for (i = 0; i < NIST_BLOCK_OUTLEN_INTS; ++i)
+			drbg->V[i] = temp[NIST_BLOCK_KEYLEN_INTS + i] ^ *provided_data++;
+	}
+	else
+		memcpy(&drbg->V[0], &temp[NIST_BLOCK_KEYLEN_INTS], sizeof(drbg->V));
 }
 
 /*
@@ -565,7 +563,7 @@ nist_ctr_drbg_generate(NIST_CTR_DRBG* drbg,
 	/* [6] (Key, V) = Update(additional_input, Key, V) */
 	nist_ctr_drbg_update(drbg, additional_input ?
 		&additional_input_buffer[0] :
-		&nist_ctr_drgb_generate_null_input[0]);
+		NULL);
 
 	/* [7] reseed_counter = reseed_counter + 1 */
 	++drbg->reseed_counter;
