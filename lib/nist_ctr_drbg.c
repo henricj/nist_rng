@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Henric Jungheim <software@henric.info>
+ * Copyright (c) 2007,2016 Henric Jungheim <software@henric.info>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -26,18 +26,19 @@
 #include <stddef.h>
 
 /*
- * NIST SP 800-90 March 2007
- * 10.4.2 Derivation Function Using a Block Cipher Algorithm
+ * NIST SP 800-90Ar1 June 2015
+ * 10.3.2 Derivation Function Using a Block Cipher Algorithm
  * Global Constants
  */
 static NIST_Key nist_cipher_df_ctx;
 static unsigned char nist_cipher_df_encrypted_iv[NIST_BLOCK_SEEDLEN / NIST_BLOCK_OUTLEN][NIST_BLOCK_OUTLEN_BYTES];
 
 /*
- * NIST SP 800-90 March 2007
+ * NIST SP 800-90Ar1 June 2015
  * 10.2.1.3.2 The Process Steps for Instantiation When a Derivation
  *            Function is Used
  * Global Constants
+ * A scheduled all-zero key.
  */
 static NIST_Key nist_cipher_zero_ctx;
 
@@ -64,8 +65,8 @@ nist_increment_block(unsigned int* V)
 }
 
 /*
- * NIST SP 800-90 March 2007
- * 10.4.3 BCC Function
+ * NIST SP 800-90Ar1 June 2015
+ * 10.3.3 BCC and Block_Encrypt
  */
 static void
 nist_ctr_drbg_bcc_update(const NIST_Key* ctx, const unsigned int* data, int n, unsigned int *chaining_value)
@@ -88,6 +89,10 @@ nist_ctr_drbg_bcc_update(const NIST_Key* ctx, const unsigned int* data, int n, u
 	/* chaining_value already is output_block, so no copy is required */
 }
 
+/*
+ * NIST SP 800-90Ar1 June 2015
+ * 10.3.3 BCC and Block_Encrypt
+ */
 static void
 nist_ctr_drbg_bcc(NIST_Key* ctx, const unsigned int* data, int n, unsigned int *output_block)
 {
@@ -98,11 +103,6 @@ nist_ctr_drbg_bcc(NIST_Key* ctx, const unsigned int* data, int n, unsigned int *
 
 	nist_ctr_drbg_bcc_update(ctx, data, n, output_block);
 }
-
-/*
- * NIST SP 800-90 March 2007
- * 10.4.2 Derivation Function Using a Block Cipher Algorithm
- */
 
 typedef struct {
 	int index;
@@ -120,10 +120,14 @@ check_int_alignment(const void* p)
 
 	if (ip & (sizeof(int) - 1))
 		return 0;
-	
+
 	return 1;
 }
 
+/*
+ * NIST SP 800-90Ar1 June 2015
+ * 10.3.2 Derivation Function Using a Block Cipher Algorithm
+ */
 static void
 nist_ctr_drbg_df_bcc_init(NIST_CTR_DRBG_DF_BCC_CTX* ctx, int L, int N)
 {
@@ -135,6 +139,10 @@ nist_ctr_drbg_df_bcc_init(NIST_CTR_DRBG_DF_BCC_CTX* ctx, int L, int N)
 	ctx->index = 2 * sizeof(S[0]);
 }
 
+/*
+ * NIST SP 800-90Ar1 June 2015
+ * 10.3.2 Derivation Function Using a Block Cipher Algorithm
+ */
 static void
 nist_ctr_drbg_df_bcc_update(NIST_CTR_DRBG_DF_BCC_CTX* ctx, const char* input_string, int input_string_length, unsigned int* temp)
 {
@@ -142,12 +150,18 @@ nist_ctr_drbg_df_bcc_update(NIST_CTR_DRBG_DF_BCC_CTX* ctx, const char* input_str
 	int index = ctx->index;
 	unsigned char* S = ctx->S;
 
+	if (!input_string || input_string_length < 1)
+		return;
+
+	/* [4] S = L || N || input_string || 0x80 */
+	/* We're handling the "input_string" here */
+
 	if (index) {
 		assert(index < NIST_BLOCK_OUTLEN_BYTES);
 		len = NIST_BLOCK_OUTLEN_BYTES - index;
 		if (input_string_length < len)
 			len = input_string_length;
-		
+
 		memcpy(&S[index], input_string, len);
 
 		index += len;
@@ -198,6 +212,10 @@ nist_ctr_drbg_df_bcc_update(NIST_CTR_DRBG_DF_BCC_CTX* ctx, const char* input_str
 	ctx->index = index;
 }
 
+/*
+ * NIST SP 800-90Ar1 June 2015
+ * 10.3.2 Derivation Function Using a Block Cipher Algorithm
+ */
 static void
 nist_ctr_drbg_df_bcc_final(NIST_CTR_DRBG_DF_BCC_CTX* ctx, unsigned int* temp)
 {
@@ -216,9 +234,13 @@ nist_ctr_drbg_df_bcc_final(NIST_CTR_DRBG_DF_BCC_CTX* ctx, unsigned int* temp)
 	}
 }
 
+/*
+ * NIST SP 800-90Ar1 June 2015
+ * 10.3.2 Derivation Function Using a Block Cipher Algorithm
+ */
 static int
 nist_ctr_drbg_block_cipher_df(const char* input_string[], unsigned int L[],
-    int input_string_count, unsigned char* output_string, unsigned int N)
+	int input_string_count, unsigned char* output_string, unsigned int N)
 {
 	int j, k, blocks, sum_L;
 	unsigned int *temp;
@@ -227,14 +249,16 @@ nist_ctr_drbg_block_cipher_df(const char* input_string[], unsigned int L[],
 	NIST_CTR_DRBG_DF_BCC_CTX df_bcc_ctx;
 	unsigned int buffer[NIST_BLOCK_SEEDLEN_INTS];
 	/*
-	 * NIST SP 800-90 March 2007 10.4.2 states that 512 bits is
+	 * NIST SP 800-90Ar1 June 2015 10.3.2 states that 512 bits is
 	 * the maximum length for the approved block cipher algorithms.
 	 */
 	unsigned int output_buffer[512 / 8 / sizeof(unsigned int)];
 
+	/* [1] if(number_of_bits_to_return > max_number_of_bits) */
 	if (N > sizeof(output_buffer) || N < 1)
 		return 1;
 
+	/* [2] L = len(input_string)/8 */
 	sum_L = 0;
 	for (j = 0; j < input_string_count; ++j)
 		sum_L += L[j];
@@ -246,7 +270,7 @@ nist_ctr_drbg_block_cipher_df(const char* input_string[], unsigned int L[],
 	for (j = 0; j < NIST_BLOCK_SEEDLEN / NIST_BLOCK_OUTLEN; ++j) {
 		/* [9.2] temp = temp || BCC(K, (IV || S)) */
 
-		/* Since we have precomputed BCC(K, IV), we start with that... */ 
+		/* Since we have precomputed BCC(K, IV), we start with that... */
 		memcpy(&temp[0], &nist_cipher_df_encrypted_iv[j][0], NIST_BLOCK_OUTLEN_BYTES);
 
 		nist_ctr_drbg_df_bcc_init(&df_bcc_ctx, sum_L, N);
@@ -281,7 +305,10 @@ nist_ctr_drbg_block_cipher_df(const char* input_string[], unsigned int L[],
 	for (j = 0; j < blocks; ++j) {
 		/* [13.1] X = Block_Encrypt(K, X) */
 		Block_Encrypt(&ctx, X, temp);
+
 		X = temp;
+
+		/* [13.2] temp = temp || X */
 		temp += NIST_BLOCK_OUTLEN_INTS;
 	}
 
@@ -293,7 +320,10 @@ nist_ctr_drbg_block_cipher_df(const char* input_string[], unsigned int L[],
 	return 0;
 }
 
-
+/*
+ * NIST SP 800-90Ar1 June 2015
+ * 10.3.2 Derivation Function Using a Block Cipher Algorithm
+ */
 static int
 nist_ctr_drbg_block_cipher_df_initialize()
 {
@@ -318,21 +348,21 @@ nist_ctr_drbg_block_cipher_df_initialize()
 	/* [9.1] IV = i || 0^(outlen - len(i)) */
 	memset(&IV[0], 0, sizeof(IV));
 
-		/* [9.3] i = i + 1 */
+	/* [9.3] i = i + 1 */
 	for (i = 0; i < NIST_BLOCK_SEEDLEN / NIST_BLOCK_OUTLEN; ++i) {
 
 		/* [9.1] IV = i || 0^(outlen - len(i)) */
 		IV[0] = NIST_HTONL(i);
 
 		/* [9.2] temp = temp || BCC(K, (IV || S))  (the IV part, at least) */
-		nist_ctr_drbg_bcc(&nist_cipher_df_ctx, &IV[0], 1, (unsigned int *)&nist_cipher_df_encrypted_iv[i][0]); 
+		nist_ctr_drbg_bcc(&nist_cipher_df_ctx, &IV[0], 1, (unsigned int *)&nist_cipher_df_encrypted_iv[i][0]);
 	}
 
 	return 0;
 }
 
 /*
- * NIST SP 800-90 March 2007
+ * NIST SP 800-90Ar1 June 2015
  * 10.2.1.2 The Update Function
  */
 static void
@@ -342,9 +372,13 @@ nist_ctr_drbg_update(NIST_CTR_DRBG* drbg, const unsigned int* provided_data)
 	unsigned int temp[NIST_BLOCK_SEEDLEN_INTS];
 	unsigned int* output_block;
 
+	assert(NIST_BLOCK_SEEDLEN_INTS == NIST_BLOCK_OUTLEN_INTS * (NIST_BLOCK_SEEDLEN_INTS / NIST_BLOCK_OUTLEN_INTS));
+
 	/* 2. while (len(temp) < seedlen) do */
 	for (output_block = temp; output_block < &temp[NIST_BLOCK_SEEDLEN_INTS];
-		output_block += NIST_BLOCK_OUTLEN_INTS) {
+			output_block += NIST_BLOCK_OUTLEN_INTS) {
+
+		assert(output_block + NIST_BLOCK_OUTLEN_INTS <= &temp[NIST_BLOCK_SEEDLEN_INTS]);
 
 		/* 2.1 V = (V + 1) mod 2^outlen */
 		nist_increment_block(&drbg->V[0]);
@@ -374,7 +408,7 @@ nist_ctr_drbg_update(NIST_CTR_DRBG* drbg, const unsigned int* provided_data)
 }
 
 /*
- * NIST SP 800-90 March 2007
+ * NIST SP 800-90Ar1 June 2015
  * 10.2.1.3.2 The Process Steps for Instantiation When a Derivation
  *            Function is Used
  */
@@ -390,7 +424,7 @@ nist_ctr_drbg_instantiate(NIST_CTR_DRBG* drbg,
 	const char *input_string[3];
 
 	/* [1] seed_material = entropy_input || nonce || personalization_string */
-	
+
 	input_string[0] = entropy_input;
 	length[0] = entropy_input_length;
 
@@ -398,18 +432,22 @@ nist_ctr_drbg_instantiate(NIST_CTR_DRBG* drbg,
 	length[1] = nonce_length;
 
 	count = 2;
-	if (personalization_string) {
+	if (personalization_string && personalization_string_length > 0) {
 		input_string[count] = personalization_string;
 		length[count] = personalization_string_length;
 		++count;
 	}
+
 	/* [2] seed_material = Block_Cipher_df(seed_material, seedlen) */
 	err = nist_ctr_drbg_block_cipher_df(input_string, length, count,
-			(unsigned char *)seed_material, sizeof(seed_material));
+		(unsigned char *)seed_material, sizeof(seed_material));
 	if (err)
 		return err;
 
 	/* [3] Key = 0^keylen */
+	/* drbg->ctx holds the scheduled key, so we copy a precomputed
+	 * scheduled zero key to ctx.
+	 */
 	memcpy(&drbg->ctx, &nist_cipher_zero_ctx, sizeof(drbg->ctx));
 
 	/* [4] V = 0^outlen */
@@ -438,7 +476,7 @@ nist_ctr_drbg_instantiate_initialize()
 }
 
 /*
- * NIST SP 800-90 March 2007
+ * NIST SP 800-90Ar1 June 2015
  * 10.2.1.4.2 The Process Steps for Reseeding When a Derivation
  *            Function is Used
  */
@@ -457,15 +495,16 @@ nist_ctr_drbg_reseed(NIST_CTR_DRBG* drbg,
 	length[0] = entropy_input_length;
 	count = 1;
 
-	if (additional_input) {
+	if (additional_input && additional_input_length > 0) {
 		input_string[count] = additional_input;
 		length[count] = additional_input_length;
-		
+
 		++count;
 	}
+
 	/* [2] seed_material = Block_Cipher_df(seed_material, seedlen) */
 	err = nist_ctr_drbg_block_cipher_df(input_string, length, count,
-			(unsigned char *)seed_material, sizeof(seed_material));
+		(unsigned char *)seed_material, sizeof(seed_material));
 	if (err)
 		return err;
 
@@ -479,7 +518,7 @@ nist_ctr_drbg_reseed(NIST_CTR_DRBG* drbg,
 }
 
 /*
- * NIST SP 800-90 March 2007
+ * NIST SP 800-90Ar1 June 2015
  * 10.2.1.5.2 The Process Steps for Generating Pseudorandom Bits When a
  *            Derivation Function is Used for the DRBG Implementation
  */
@@ -493,6 +532,11 @@ nist_ctr_drbg_generate_block(NIST_CTR_DRBG* drbg, unsigned int* output_block)
 	Block_Encrypt(&drbg->ctx, &drbg->V[0], output_block);
 }
 
+/*
+ * NIST SP 800-90Ar1 June 2015
+ * 10.2.1.5.2 The Process Steps for Generating Pseudorandom Bits When a
+ *            Derivation Function is Used for the DRBG Implementation
+ */
 int
 nist_ctr_drbg_generate(NIST_CTR_DRBG* drbg,
 	void* output_string, int output_string_length,
@@ -502,8 +546,6 @@ nist_ctr_drbg_generate(NIST_CTR_DRBG* drbg,
 	int blocks = output_string_length / NIST_BLOCK_OUTLEN_BYTES;
 	unsigned char* p;
 	unsigned int* temp;
-	const char *input_string[1];
-	unsigned int length[1];
 	unsigned int buffer[NIST_BLOCK_OUTLEN_BYTES];
 	unsigned int additional_input_buffer[NIST_BLOCK_SEEDLEN_INTS];
 
@@ -515,12 +557,16 @@ nist_ctr_drbg_generate(NIST_CTR_DRBG* drbg,
 		return 1;
 
 	/* [2] If (addional_input != Null), then */
-	if (additional_input) {
+	if (additional_input && additional_input_length > 0) {
+		const char *input_string[1];
+		unsigned int length[1];
+
 		input_string[0] = additional_input;
 		length[0] = additional_input_length;
+
 		/* [2.1] additional_input = Block_Cipher_df(additional_input, seedlen) */
 		err = nist_ctr_drbg_block_cipher_df(input_string, length, 1,
-				(unsigned char *)additional_input_buffer, sizeof(additional_input_buffer));
+			(unsigned char *)additional_input_buffer, sizeof(additional_input_buffer));
 		if (err)
 			return err;
 
@@ -531,6 +577,8 @@ nist_ctr_drbg_generate(NIST_CTR_DRBG* drbg,
 	if (blocks && check_int_alignment(output_string)) {
 		/* [3] temp = Null */
 		temp = (unsigned int *)output_string;
+
+		/* [4] While (len(temp) < requested_number_of_bits) do: */
 		for (i = 0; i < blocks; ++i) {
 			nist_ctr_drbg_generate_block(drbg, temp);
 
@@ -540,14 +588,14 @@ nist_ctr_drbg_generate(NIST_CTR_DRBG* drbg,
 
 		output_string = (unsigned char *)temp;
 	}
-	
+
 	/* [3] temp = Null */
 	temp = buffer;
 
 	len = NIST_BLOCK_OUTLEN_BYTES;
+	p = output_string;
 
 	/* [4] While (len(temp) < requested_number_of_bits) do: */
-	p = output_string;
 	while (output_string_length > 0) {
 		nist_ctr_drbg_generate_block(drbg, temp);
 
@@ -579,6 +627,7 @@ nist_ctr_initialize()
 	err = nist_ctr_drbg_instantiate_initialize();
 	if (err)
 		return err;
+
 	err = nist_ctr_drbg_block_cipher_df_initialize();
 	if (err)
 		return err;
