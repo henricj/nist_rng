@@ -9,7 +9,7 @@ make install
 # windows (in a 32/64bit build shell):
 md build
 cd build
-cmake -G 'NMake Makefiles' -DCMAKE_INSTALL_PREFIX=out ..
+cmake -G "NMake Makefiles" -DCMAKE_INSTALL_PREFIX=out ..
 nmake install
 
 for android and/or ios builds, you can use the provided scripts
