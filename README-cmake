@@ -1,0 +1,18 @@
+to build with cmake, use these steps:
+
+# unix-ish:
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=out ..
+make install
+
+# windows (in a 32/64bit build shell):
+md build
+cd build
+cmake -G "NMake Makefiles" -DCMAKE_INSTALL_PREFIX=out ..
+nmake install
+
+for android and/or ios builds, you can use the provided scripts
+build-android.sh and build-ios.sh. they can be run from the root
+of the repository, subdirs will be created. additionally, a fat
+library will be lipo'ed for ios.
