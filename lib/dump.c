@@ -22,7 +22,7 @@ void
 nist_dump_simple_hex(const void* data, int length)
 {
 	int i;
-	const unsigned char* p = data;
+	const unsigned char* p = (const unsigned char*)data;
 	for (i = 0; i < length; ++i)
 		printf("%02X", *p++);
 }
@@ -31,7 +31,7 @@ void
 nist_dump_hex(const void* data, int length)
 {
 	int i;
-	const unsigned char* p = data;
+	const unsigned char* p = (const unsigned char*)data;
 	for (i = 0; i < length; ++i) {
 		if (i && !(i & 3)) {
 			printf((i & 31) ? "-" : "\n");

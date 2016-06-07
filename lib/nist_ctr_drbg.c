@@ -425,15 +425,15 @@ nist_ctr_drbg_instantiate(NIST_CTR_DRBG* drbg,
 
 	/* [1] seed_material = entropy_input || nonce || personalization_string */
 
-	input_string[0] = entropy_input;
+	input_string[0] = (const char*)entropy_input;
 	length[0] = entropy_input_length;
 
-	input_string[1] = nonce;
+	input_string[1] = (const char*)nonce;
 	length[1] = nonce_length;
 
 	count = 2;
 	if (personalization_string && personalization_string_length > 0) {
-		input_string[count] = personalization_string;
+		input_string[count] = (const char*)personalization_string;
 		length[count] = personalization_string_length;
 		++count;
 	}
@@ -491,12 +491,12 @@ nist_ctr_drbg_reseed(NIST_CTR_DRBG* drbg,
 	unsigned int seed_material[NIST_BLOCK_SEEDLEN_INTS];
 
 	/* [1] seed_material = entropy_input || additional_input */
-	input_string[0] = entropy_input;
+	input_string[0] = (const char*)entropy_input;
 	length[0] = entropy_input_length;
 	count = 1;
 
 	if (additional_input && additional_input_length > 0) {
-		input_string[count] = additional_input;
+		input_string[count] = (const char*)additional_input;
 		length[count] = additional_input_length;
 
 		++count;
@@ -561,7 +561,7 @@ nist_ctr_drbg_generate(NIST_CTR_DRBG* drbg,
 		const char *input_string[1];
 		unsigned int length[1];
 
-		input_string[0] = additional_input;
+		input_string[0] = (const char*)additional_input;
 		length[0] = additional_input_length;
 
 		/* [2.1] additional_input = Block_Cipher_df(additional_input, seedlen) */
@@ -593,7 +593,7 @@ nist_ctr_drbg_generate(NIST_CTR_DRBG* drbg,
 	temp = buffer;
 
 	len = NIST_BLOCK_OUTLEN_BYTES;
-	p = output_string;
+	p = (unsigned char*)output_string;
 
 	/* [4] While (len(temp) < requested_number_of_bits) do: */
 	while (output_string_length > 0) {
